@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 public class CliNote
 {
     List<Note> Notes = new List<Note>();
-    string FilePath = @"D:\Notes.txt";
+    string FilePath = @"Notes.txt";
     //List<TableNote> TableNotes = new List<TableNote>();
     public CliNote()
     {
@@ -62,29 +62,32 @@ public class CliNote
             Console.WriteLine("Note not found with name:" + name);
         }
     }
-    void TakeNote(string[] args) 
+    void TakeNote(string[] args)
     {
-        if (args.Length==3)
+        if (args.Length == 3)
         {
-            if (IsCmdOk(args[0],"-t","-Table"))
+            if (IsCmdOk(args[0], "-t", "-Table"))
             {
-                string Name=args[1];
-                string Row=args[2];
-                var CurrentNote = (TableNote)Notes.Find(note=>note.Name==Name);
-                if (CurrentNote !=null)
+                string Name = args[1];
+                string Row = args[2];
+                var CurrentNote = (TableNote)Notes.Find(note => note.Name == Name);
+                if (CurrentNote != null)
                 {
                     CurrentNote.AddRow(Row);
-                    
+
                 }
-                else {
-                    Console.WriteLine("Note Not found with name: "+Name);
+                else
+                {
+                    Console.WriteLine("Note Not found with name: " + Name);
                 }
             }
-            else {
+            else
+            {
                 Console.WriteLine("Invalid Commnad");
             }
         }
-        else {
+        else
+        {
             Console.WriteLine("Invalid number of arguments given");
         }
         SaveNotes();
@@ -99,7 +102,7 @@ public class CliNote
             {
                 CreateTable(args);
             }
-            
+
         }
         else
         {
@@ -140,23 +143,33 @@ public class CliNote
             TypeNameHandling = TypeNameHandling.All,
         };
         var NotesJson = JsonConvert.SerializeObject(Notes, settings);
+        if (!File.Exists(FilePath))
+        {
+            using (FileStream fs = File.Create(FilePath))
+            {
+
+            }
+        }
         File.WriteAllText(FilePath, NotesJson);
     }
 
     public void LoadNotes()
     {
-        string NotesJson = File.ReadAllText(FilePath);
-        JsonSerializerSettings settings = new JsonSerializerSettings
+        if (File.Exists(FilePath))
         {
-            TypeNameHandling = TypeNameHandling.All
-        };
-
-        if (NotesJson != "")
-        {
-            var TempNotes = JsonConvert.DeserializeObject<List<Note>>(NotesJson,settings);
-            if (TempNotes != null)
+            string NotesJson = File.ReadAllText(FilePath);
+            JsonSerializerSettings settings = new JsonSerializerSettings
             {
-                Notes = TempNotes;
+                TypeNameHandling = TypeNameHandling.All
+            };
+
+            if (NotesJson != "")
+            {
+                var TempNotes = JsonConvert.DeserializeObject<List<Note>>(NotesJson, settings);
+                if (TempNotes != null)
+                {
+                    Notes = TempNotes;
+                }
             }
         }
     }
