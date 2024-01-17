@@ -7,7 +7,8 @@ using Newtonsoft.Json;
 public class CliNote
 {
     List<Note> Notes = new List<Note>();
-    string FilePath = @"Notes.txt";
+    static string scope="global";
+    static string FilePath =  @"Notes.txt";
     //List<TableNote> TableNotes = new List<TableNote>();
     public CliNote()
     {
@@ -20,7 +21,8 @@ public class CliNote
     }
     public void ExecuteCommand(string[] commnad)
     {
-        if (commnad.Length > 0)
+        LoadNotes();
+        if (commnad.Length > 0 || (commnad.Length == 1 && commnad[0] != ""))
         {
             var cmd = commnad[0];
             var args = commnad.Skip(1).ToArray();
@@ -38,42 +40,146 @@ public class CliNote
             }
             else if (IsCmdOk(cmd, "sn", "ShowNote"))
             {
-                ShowNote(args[0]);
+                ShowNote(args);
+            }
+            else if (IsCmdOk(cmd, "h", "Help"))
+            {
+                ShowHelp();
             }
             else
             {
-                Console.WriteLine("Command not recognized");
+                if (commnad.Length <= 2)
+                {
+                    ShowNote(commnad);
+                }
+                else
+                {
+                    Console.WriteLine("Command not recognized");
+                }
             }
         }
         else
         {
-            Console.WriteLine("This is a CLI notes application built by Faizan Younas Tanooli");
+            ShowList();
+            Console.WriteLine("Developed by Faizan Younas Tanooli");
         }
     }
-    void ShowNote(string name)
+    void ShowList()
     {
-        var NoteToShow = Notes.Find(note => note.Name == name);
+        if (Notes.Count > 0)
+        {
+            Console.WriteLine("Notes list:");
+            Console.WriteLine(TableGenerator.GenerateTable(Notes.Select((note, index) => new { SrNo = index + 1, note.Name, Type = note.GetType() }).ToList()));
+        }
+        else
+        {
+            Console.WriteLine("No note added yet.");
+            ShowHelp();
+        }
+    }
+    void ShowHelp()
+    {
+        Console.WriteLine("CLI Notes Application Help");
+        Console.WriteLine("==========================\n");
+
+        Console.WriteLine("General Usage:");
+        Console.WriteLine("  [command] [arguments]\n");
+
+        Console.WriteLine("Commands:");
+
+        // Create Table Note
+        Console.WriteLine("CreateTableNote (ctn):");
+        Console.WriteLine("  Creates a new table note with specified headers.");
+        Console.WriteLine("  Usage: ctn -name [note name] -headers [header1,header2,...]\n");
+
+        // Create Normal Note
+        Console.WriteLine("CreateNormalNote (cnn):");
+        Console.WriteLine("  Creates a new normal note.");
+        Console.WriteLine("  Usage: cnn [note name]\n");
+
+        // Take Note
+        Console.WriteLine("TakeNote (tn):");
+        Console.WriteLine("  Adds content to an existing table note.");
+        Console.WriteLine("  Usage: tn -t [note name] -row [\"cell1,cell2,...\"]\n");
+
+        // Show Note
+        Console.WriteLine("ShowNote (sn):");
+        Console.WriteLine("  Displays the content of a note.");
+        Console.WriteLine("  Usage: sn [note name]\n");
+
+        // Show List
+        Console.WriteLine("ShowList:");
+        Console.WriteLine("  Displays a list of all notes.");
+        Console.WriteLine("  Usage: Execute command without arguments to see all notes.\n");
+
+        // Help
+        Console.WriteLine("Help (h):");
+        Console.WriteLine("  Shows this help information.\n");
+        Console.WriteLine("Developer: Faizan Younas Tanooli");
+    }
+    void ShowNote(string[] args)
+    {
+        string name="";
+        string filter="";
+        if (args.Length>=1)
+        {
+            name = args[0];
+            
+        }
+        if (args.Length>=2)
+        {
+            filter=args[1];
+        }
+        var NoteToShow = GetNote(name);
         if (NoteToShow != null)
         {
-            NoteToShow.Show();
+            if (filter!="")
+            {
+                NoteToShow.Show(filter);
+            }
+            else {
+                 NoteToShow.Show();
+            }
         }
         else
         {
             Console.WriteLine("Note not found with name:" + name);
         }
+        
+    }
+    Note? GetNote(string name)
+    {
+        return Notes.Find(note => note.Name.ToLower() == name.ToLower());
     }
     void TakeNote(string[] args)
     {
-        if (args.Length == 3)
+        if (args.Length >= 2)
         {
             if (IsCmdOk(args[0], "-t", "-Table"))
             {
                 string Name = args[1];
-                string Row = args[2];
-                var CurrentNote = (TableNote)Notes.Find(note => note.Name == Name);
+                var CurrentNote = (TableNote?)GetNote(Name);
                 if (CurrentNote != null)
                 {
-                    CurrentNote.AddRow(Row);
+                    string? Row = null;
+                    try
+                    {
+
+                        Row = args[2];
+                    }
+                    catch
+                    {
+
+                    }
+                    if (Row != null)
+                    {
+                        CurrentNote.AddRow(Row);
+                    }
+                    else
+                    {
+                        List<List<string>> Rows = GetRows(CurrentNote);
+                        CurrentNote.AddRows(Rows);
+                    }
 
                 }
                 else
@@ -91,6 +197,27 @@ public class CliNote
             Console.WriteLine("Invalid number of arguments given");
         }
         SaveNotes();
+    }
+
+    List<List<string>> GetRows(TableNote TblNote)
+    {
+        string AddMore = "";
+        List<List<string>> RowsToAdd = new List<List<string>>();
+
+        while (AddMore == "")
+        {
+            List<string> RowToAdd = new List<string>();
+            foreach (string Column in TblNote.Headers)
+            {
+                Console.Write(Column + ": ");
+                string Value = Console.ReadLine() ?? "N/A";
+                RowToAdd.Add(Value);
+            }
+            RowsToAdd.Add(RowToAdd);
+            Console.Write("Hit Enter to add more type n to exit");
+            AddMore = Console.ReadLine() ?? "n";
+        }
+        return RowsToAdd;
     }
     void CreateNormal(string[] args)
     {
@@ -110,18 +237,11 @@ public class CliNote
         }
 
     }
-    static bool ValidateFlags(string[] expectedStrings, string[] actualArray)
+    static bool ValidateFlags(string[] expectedStrings, List<string> actualArray)
     {
-        if (expectedStrings.Length != actualArray.Length)
-        {
-            Console.WriteLine("Invalid number of aruguments given.");
-            return false;
-        }
-
-        // Validation HashSet to track unique strings
         var validationHashSet = new HashSet<string>(expectedStrings);
 
-        for (int i = 0; i < actualArray.Length; i++)
+        for (int i = 0; i < actualArray.Count; i++)
         {
             if (!validationHashSet.Contains(actualArray[i]))
             {
@@ -142,7 +262,7 @@ public class CliNote
         {
             TypeNameHandling = TypeNameHandling.All,
         };
-        var NotesJson = JsonConvert.SerializeObject(Notes, settings);
+        string? NotesJson = JsonConvert.SerializeObject(Notes, settings);
         if (!File.Exists(FilePath))
         {
             using (FileStream fs = File.Create(FilePath))
@@ -176,32 +296,50 @@ public class CliNote
 
     void CreateTable(string[] args)
     {
-        string[] Flags = args.Where(arg => arg.StartsWith("-")).ToArray();
-        string[] FlagsArguments = args.Where(arg => !arg.StartsWith("-")).ToArray();
-        if (Flags.Length != FlagsArguments.Length)
+        var Flags = args.Where(arg => arg.StartsWith("-")).ToList();
+        var FlagsArguments = args.Where(arg => !arg.StartsWith("-")).ToList();
+        bool Result = true;
+        
+        if (Flags.Count == 1)
         {
-            Console.WriteLine("Invalid number of arguments given");
+            Result = ValidateFlags(new[] {"-headers"}, Flags);
         }
-        if (ValidateFlags(["-name", "-headers"], Flags))
+        if (!Result)
         {
-            int index = 0;
-            string NoteName = "";
-            string Headers = "";
-            foreach (var Flag in Flags)
-            {
-                if (Flag == "-name")
-                {
-                    NoteName = FlagsArguments[index];
-                }
-                else if (Flag == "-headers")
-                {
-                    Headers = FlagsArguments[index];
-                }
-                index++;
-            }
+            return;
+        }
+        string Headers = "";
+        string NoteName = args[0];
+        int HeadersIndex = Flags.IndexOf("-headers");
+        if (HeadersIndex == -1)
+        {
+            List<string> HeadersList = GetHeaders();
+            var TblNote = new TableNote(NoteName, HeadersList);
+            Notes.Add(TblNote);
+        }
+        else
+        {
+            Headers = FlagsArguments[HeadersIndex];
             var TblNote = new TableNote(NoteName, Headers);
             Notes.Add(TblNote);
-            SaveNotes();
         }
+        SaveNotes();
+    }
+
+    List<string> GetHeaders()
+    {
+        string? HeaderName = null;
+        List<string> Headers = new List<string>();
+        Console.WriteLine("Enter Column Names");
+        while (HeaderName != "")
+        {
+            Console.Write("Name :");
+            HeaderName = Console.ReadLine()?.Trim() ?? "";
+            if (HeaderName != "")
+            {
+                Headers.Add(HeaderName);
+            }
+        }
+        return Headers;
     }
 }

@@ -70,13 +70,13 @@ public class TableGenerator
         sb.AppendLine(endingLine);
         return sb.ToString();
     }
-    static string GenerateTable(IList<object> obj)
+    public static string GenerateTable<T>(IList<T> obj)
     {
-        var headers = GetPropertyNames(obj);
+        var headers = GetPropertyNames(obj[0]);
         int[] columnWidths = new int[headers.Count];
         for (int i = 0; i < headers.Count; i++)
         {
-            columnWidths[i] = Math.Max(headers[i].Length, obj.Max(row => row.GetType().GetProperty(headers[i]).ToString().Length));
+            columnWidths[i] = Math.Max(headers[i].Length, obj.Max(row => row.GetType().GetProperty(headers[i]).GetValue(row,null).ToString().Length));
         }
         string horizontalLine = $"┌{string.Join("┬", columnWidths.Select(width => new string('─', width)))}┐";
         string endingLine = $"└{string.Join("┴", columnWidths.Select(width => new string('─', width)))}┘";
@@ -93,7 +93,7 @@ public class TableGenerator
 
             foreach (var header in headers)
             {
-                string cellValue = Convert.ToString(row.GetType().GetProperty(header));
+                string cellValue = Convert.ToString(row.GetType().GetProperty(header).GetValue(row,null));
                 dataRowBuilder.Append(cellValue.PadRight(columnWidths[headers.IndexOf(header)])).Append("│");
             }
 
@@ -116,7 +116,8 @@ public class TableGenerator
 
     public static string GenerateTable(List<string> headers, List<List<string>> Rows)
     {
-        if (Rows.Count > 0)
+
+        if (Rows!=null && Rows.Count > 0)
         {
             int[] columnWidths = new int[headers.Count];
             for (int i = 0; i < headers.Count; i++)

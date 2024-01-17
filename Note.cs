@@ -7,4 +7,5 @@ public abstract class Note {
     }
 
     public abstract void Show();
+    public abstract void Show(string filter);
 }
